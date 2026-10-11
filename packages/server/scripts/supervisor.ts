@@ -286,15 +286,20 @@ export function runSupervisor(options: SupervisorOptions): SupervisorController 
     writeLifecycleLog("Spawning worker", { workerEntry });
     if (spawnSpec) {
       child = spawn(spawnSpec.command, spawnSpec.args, {
+        windowsHide: true,
         stdio: ["inherit", "pipe", "pipe", "ipc"],
         env: spawnSpec.env ?? workerEnv,
       });
     } else {
+      // fork() passes windowsHide through to spawn() at runtime (verified on Windows in
+      // getpaseo/paseo#5569), but Node's ForkOptions type does not list it, so the literal is
+      // asserted rather than widened.
       child = fork(workerEntry, workerArgs, {
+        windowsHide: true,
         stdio: ["inherit", "pipe", "pipe", "ipc"],
         env: workerEnv,
         execArgv: workerExecArgv,
-      });
+      } as Parameters<typeof fork>[2]);
     }
 
     const currentChild = child;
