@@ -100,6 +100,7 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
   shortcutNumber = null,
   showShortcutBadge = false,
   reserveIdleStatusIndicatorSpace = true,
+  hideChatStatus = false,
   children,
 }: {
   workspace: SidebarWorkspaceEntry;
@@ -117,6 +118,11 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
   showShortcutBadge?: boolean;
   /** Keep the empty leading slot when the workspace has no active status. */
   reserveIdleStatusIndicatorSpace?: boolean;
+  /**
+   * PW build: the workspace row does not show its chats' status - each chat row under it does
+   * (pw-chat-tree). Starting up and archiving still show.
+   */
+  hideChatStatus?: boolean;
   children?: ReactNode;
 }) {
   const {
@@ -143,14 +149,14 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
             iconDataUri={leadingProjectIconDataUri}
             displayName={leadingProjectName}
             projectViewKey={workspace.projectViewKey}
-            statusBucket={workspace.statusBucket}
+            statusBucket={hideChatStatus ? "done" : workspace.statusBucket}
             backdrop={backdrop}
             loading={isLoading}
             testID={`sidebar-row-project-icon-${workspace.workspaceKey}`}
           />
         ) : (
           <WorkspaceStatusIndicator
-            bucket={workspace.statusBucket}
+            bucket={hideChatStatus ? "done" : workspace.statusBucket}
             workspaceKind={workspace.workspaceKind}
             loading={isLoading}
             reserveIdleSpace={reserveIdleStatusIndicatorSpace}

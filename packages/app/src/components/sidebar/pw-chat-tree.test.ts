@@ -124,7 +124,7 @@ describe("buildPwChatTree", () => {
   });
 });
 
-// Build 8: order by dragging, finished chats last, state in words, topic rename, tabs in view.
+// Build 8: order by dragging, finished chats last, topic rename, tabs in view.
 import {
   findMovedRowKey,
   flattenPwChatTree,
@@ -132,7 +132,6 @@ import {
   pickTabsInView,
   planPwDrag,
   planPwTopicRename,
-  readPwChatState,
 } from "./pw-chat-tree-model";
 
 describe("order", () => {
@@ -249,17 +248,6 @@ describe("topic rename", () => {
       ["b", { "pw.topic": "Nonconformance" }],
     ]);
     expect(planPwTopicRename(tree, "NC", "NC")).toEqual([]);
-  });
-});
-
-describe("state in words", () => {
-  const base = { requiresAttention: false, attentionReason: null, pendingPermissions: [] };
-  test("the states a tab shows", () => {
-    expect(readPwChatState({ ...base, status: "running" } as never)).toBe("working");
-    expect(readPwChatState({ ...base, status: "idle", requiresAttention: true, attentionReason: "finished" } as never)).toBe("finished");
-    expect(readPwChatState({ ...base, status: "idle", requiresAttention: true, attentionReason: "permission" } as never)).toBe("waiting for you");
-    expect(readPwChatState({ ...base, status: "error" } as never)).toBe("failed");
-    expect(readPwChatState({ ...base, status: "idle" } as never)).toBeNull();
   });
 });
 

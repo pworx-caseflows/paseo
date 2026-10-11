@@ -17,8 +17,8 @@
 // The main list comes first, then the topics. Dragging a chat changes its place, and moves it into
 // the topic it is dropped under, or out to the main list; dragging a topic moves it with its
 // chats. The order is kept in labels (pw.order, pw.topicOrder). A chat whose name starts with
-// "(Finished)" always sits at the bottom of its list. Each chat says in words what it is doing:
-// working, waiting for you, finished, failed - the states its tab shows.
+// "(Finished)" always sits at the bottom of its list. Each chat carries its tab's icon and status
+// mark - the moving ring while it works, the dot or alert sign when it finished, failed or waits.
 
 import { useCallback, useMemo, useRef, useState, type ReactElement } from "react";
 import { Text, View } from "react-native";
@@ -55,7 +55,13 @@ import {
 } from "@/components/ui/menu";
 import { useToast } from "@/contexts/toast-context";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
-import { useSessionStore } from "@/stores/session-store";
+import { selectAgentTurnPresentation, useSessionStore } from "@/stores/session-store";
+import { useProviderIcon } from "@/components/provider-icons";
+import {
+  WorkspaceTabIcon,
+  type WorkspaceTabPresentation,
+} from "@/screens/workspace/workspace-tab-presentation";
+import { deriveSidebarStateBucket } from "@/utils/sidebar-agent-state";
 import type { Theme } from "@/styles/theme";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
@@ -187,6 +193,56 @@ function NewTopicPage({ chat }: { chat: PwChat }): ReactElement {
       </MenuItem>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </>
+  );
+}
+
+/**
+ * The chat's tab icon, status and all: the moving ring while it works, the dot or alert sign when
+ * it finished, failed or waits for you - worked out exactly as the chat's tab works it out.
+ */
+function PwChatStatusIcon({ chat, selected }: { chat: PwChat; selected: boolean }) {
+  const state = useSessionStore(
+    useShallow((s) => {
+      const session = s.sessions[chat.serverId];
+      const agent = session?.agents?.get(chat.agentId) ?? null;
+      return {
+        provider: agent?.provider ?? "claude",
+        status: agent?.status ?? null,
+        pendingPermissionCount: agent?.pendingPermissions.length ?? 0,
+        requiresAttention: agent?.requiresAttention ?? false,
+        attentionReason: agent?.attentionReason ?? null,
+        isTurnActive: selectAgentTurnPresentation(session, chat.agentId).isActive,
+      };
+    }),
+  );
+  const icon = useProviderIcon(state.provider, chat.serverId);
+  const presentation = useMemo<WorkspaceTabPresentation>(
+    () => ({
+      key: chat.agentId,
+      kind: "agent",
+      label: chat.title,
+      subtitle: "",
+      tooltip: chat.title,
+      modified: false,
+      showCloseButton: false,
+      titleState: "ready",
+      icon,
+      statusBucket: state.status
+        ? deriveSidebarStateBucket({
+            status: state.isTurnActive ? "running" : state.status,
+            pendingPermissionCount: state.pendingPermissionCount,
+            requiresAttention: state.requiresAttention,
+            attentionReason: state.attentionReason,
+          })
+        : null,
+    }),
+    [chat.agentId, chat.title, icon, state],
+  );
+  return (
+    <WorkspaceTabIcon
+      presentation={presentation}
+      backdrop={selected ? "surfaceSidebarSelected" : "surfaceSidebar"}
+    />
   );
 }
 
@@ -352,14 +408,10 @@ function ChatRow({
           pressed && styles.rowPressed,
         ]}
       >
+        <PwChatStatusIcon chat={chat} selected={selected} />
         <Text numberOfLines={1} style={styles.chatText}>
           {chat.title}
         </Text>
-        {chat.state ? (
-          <Text style={styles.stateText} testID={`pw-chat-state-${chat.agentId}`}>
-            {chat.state}
-          </Text>
-        ) : null}
       </ContextMenuTrigger>
       <ContextMenuContent
         align="start"
@@ -715,11 +767,6 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.base,
     fontWeight: theme.fontWeight.medium,
     lineHeight: 20,
-  },
-  // What the chat is doing, in words - never a colour alone.
-  stateText: {
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.sm,
   },
   countText: {
     color: theme.colors.foregroundMuted,

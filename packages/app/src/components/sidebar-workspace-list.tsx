@@ -1177,6 +1177,7 @@ function WorkspaceRowInner({
                 shortcutNumber={shortcutNumber}
                 showShortcutBadge={showShortcutBadge}
                 reserveIdleStatusIndicatorSpace={reserveIdleStatusIndicatorSpace}
+                hideChatStatus
               >
                 <WorkspaceRowRightGroup
                   workspace={workspace}

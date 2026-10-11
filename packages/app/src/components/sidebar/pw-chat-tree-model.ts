@@ -9,7 +9,6 @@ import {
   type SplitPane,
   type WorkspaceLayout,
 } from "@/stores/workspace-layout-actions";
-import { deriveSidebarStateBucket } from "@/utils/sidebar-agent-state";
 
 function firstPane(node: SplitNode): SplitPane | null {
   if (node.kind === "pane") return node.pane;
@@ -41,9 +40,6 @@ export const PW_TOPIC_ORDER_LABEL = "pw.topicOrder";
 /** The wrap-up marks a finished chat by starting its name with this. */
 export const PW_FINISHED_PREFIX = "(Finished)";
 
-/** What a chat is doing, in words: the states a chat's tab shows. Null when there is nothing to say. */
-export type PwChatState = "waiting for you" | "failed" | "working" | "finished" | null;
-
 export interface PwChat {
   serverId: string;
   agentId: string;
@@ -53,7 +49,6 @@ export interface PwChat {
   order: number | null;
   topicOrder: number | null;
   finished: boolean;
-  state: PwChatState;
   lastActivityAt: number;
 }
 
@@ -82,29 +77,6 @@ export function isFinishedTitle(title: string): boolean {
   return title.trim().toLowerCase().startsWith(PW_FINISHED_PREFIX.toLowerCase());
 }
 
-export function readPwChatState(
-  agent: Pick<Agent, "status" | "requiresAttention" | "attentionReason" | "pendingPermissions">,
-): PwChatState {
-  const bucket = deriveSidebarStateBucket({
-    status: agent.status,
-    requiresAttention: Boolean(agent.requiresAttention),
-    attentionReason: agent.attentionReason ?? null,
-    pendingPermissionCount: agent.pendingPermissions?.length ?? 0,
-  });
-  switch (bucket) {
-    case "needs_input":
-      return "waiting for you";
-    case "failed":
-      return "failed";
-    case "running":
-      return "working";
-    case "attention":
-      return "finished";
-    default:
-      return null;
-  }
-}
-
 export function toPwChat(agent: Agent): PwChat {
   const title = agent.title?.trim() || "New chat";
   return {
@@ -115,7 +87,6 @@ export function toPwChat(agent: Agent): PwChat {
     order: readNumber(agent.labels, PW_ORDER_LABEL),
     topicOrder: readNumber(agent.labels, PW_TOPIC_ORDER_LABEL),
     finished: isFinishedTitle(title),
-    state: readPwChatState(agent),
     lastActivityAt: new Date(agent.lastActivityAt).getTime() || 0,
   };
 }
