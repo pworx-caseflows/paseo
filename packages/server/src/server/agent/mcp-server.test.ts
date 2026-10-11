@@ -4277,6 +4277,40 @@ describe("update_agent MCP tool", () => {
     expect(response.structuredContent).toEqual({ success: true });
   });
 
+  it("PW: with no agentId it renames the agent making the call", async () => {
+    const { agentManager, agentStorage, spies } = createTestDeps();
+    const server = await createAgentMcpServer({
+      agentManager,
+      agentStorage,
+      providerSnapshotManager: createOpenCodeManager().manager,
+      callerAgentId: "caller-7",
+      logger,
+    });
+    const tool = registeredTool(server, "update_agent");
+    const input = { name: "(Finished) Something" };
+
+    expect((await tool.inputSchema.safeParseAsync(input)).success).toBe(true);
+    await tool.handler(input);
+
+    expect(spies.agentManager.updateAgentMetadata).toHaveBeenCalledWith("caller-7", {
+      title: "(Finished) Something",
+    });
+  });
+
+  it("PW: with no agentId and no calling agent it refuses", async () => {
+    const { agentManager, agentStorage, spies } = createTestDeps();
+    const server = await createAgentMcpServer({
+      agentManager,
+      agentStorage,
+      providerSnapshotManager: createOpenCodeManager().manager,
+      logger,
+    });
+    const tool = registeredTool(server, "update_agent");
+
+    await expect(tool.handler({ name: "x" })).rejects.toThrow(/agentId is required/);
+    expect(spies.agentManager.updateAgentMetadata).not.toHaveBeenCalled();
+  });
+
   it("reports success for a no-op update with neither metadata nor settings", async () => {
     const { agentManager, agentStorage, spies } = createTestDeps();
     const server = await createAgentMcpServer({

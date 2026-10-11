@@ -11,11 +11,17 @@
 // another chat started. The list is live: it reads the session store the rest of the app reads.
 //
 // Right-click (long press on touch) on a chat gives the chat tab's own actions - rename, copy
-// resume command, copy agent id, reload, close - plus Move to topic: an existing topic, a new
-// one, or none.
+// resume command, copy agent id, reload, archive, delete - plus Move to topic: an existing topic,
+// a new one, or none. Right-click on a topic renames it.
+//
+// The main list comes first, then the topics. Dragging a chat changes its place, and moves it into
+// the topic it is dropped under, or out to the main list; dragging a topic moves it with its
+// chats. The order is kept in labels (pw.order, pw.topicOrder). A chat whose name starts with
+// "(Finished)" always sits at the bottom of its list. Each chat says in words what it is doing:
+// working, waiting for you, finished, failed - the states its tab shows.
 
-import { useCallback, useMemo, useState, type ReactElement, type ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState, type ReactElement } from "react";
+import { Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import * as Clipboard from "expo-clipboard";
@@ -31,6 +37,8 @@ import {
   Trash2,
 } from "lucide-react-native";
 import { useShallow } from "zustand/react/shallow";
+import { DraggableList, type DraggableRenderItemInfo } from "@/components/draggable-list";
+import { isNative } from "@/constants/platform";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
 import {
   ContextMenu,
@@ -51,13 +59,22 @@ import { useSessionStore } from "@/stores/session-store";
 import type { Theme } from "@/styles/theme";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
+import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
+import { generateDraftId } from "@/stores/draft-keys";
+import { rememberPwDraftTopic } from "@/components/sidebar/pw-draft-topics";
 import { buildProviderCommand } from "@/utils/provider-command-templates";
 
 import {
   buildPwChatTree,
+  findMovedRowKey,
+  flattenPwChatTree,
   pickFocusedAgentId,
+  planPwDrag,
+  planPwTopicRename,
   PW_TOPIC_LABEL,
   type PwChat,
+  type PwLabelWrite,
+  type PwTreeRow,
 } from "@/components/sidebar/pw-chat-tree-model";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 
@@ -76,6 +93,14 @@ const ThemedRotateCw = withUnistyles(RotateCw);
 const ThemedArchive = withUnistyles(Archive);
 const ThemedTrash2 = withUnistyles(Trash2);
 const mutedColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
+
+async function applyWrites(writes: readonly PwLabelWrite[]): Promise<void> {
+  for (const write of writes) {
+    const client = getHostRuntimeStore().getClient(write.serverId);
+    if (!client) throw new Error("Host is not connected");
+    await client.updateAgent(write.agentId, { labels: write.labels });
+  }
+}
 
 async function setTopic(chat: PwChat, topic: string): Promise<void> {
   const client = getHostRuntimeStore().getClient(chat.serverId);
@@ -330,6 +355,11 @@ function ChatRow({
         <Text numberOfLines={1} style={styles.chatText}>
           {chat.title}
         </Text>
+        {chat.state ? (
+          <Text style={styles.stateText} testID={`pw-chat-state-${chat.agentId}`}>
+            {chat.state}
+          </Text>
+        ) : null}
       </ContextMenuTrigger>
       <ContextMenuContent
         align="start"
@@ -402,56 +432,66 @@ function TopicRow({
   count,
   folded,
   onToggle,
+  onRename,
+  onNewChat,
 }: {
   name: string;
   count: number;
   folded: boolean;
   onToggle: (name: string) => void;
+  onRename: (name: string) => void;
+  onNewChat: (name: string) => void;
 }) {
   const toggle = useCallback(() => onToggle(name), [name, onToggle]);
   return (
-    <PlainRow onPress={toggle} testID={`pw-topic-row-${name}`} label={name}>
-      {folded ? (
-        <ThemedChevronRight size={14} uniProps={mutedColor} />
-      ) : (
-        <ThemedChevronDown size={14} uniProps={mutedColor} />
-      )}
-      <Text numberOfLines={1} style={styles.topicText}>
-        {name}
-      </Text>
-      <Text style={styles.countText}>{count}</Text>
-    </PlainRow>
+    <ContextMenu>
+      <ContextMenuTrigger
+        testID={`pw-topic-row-${name}`}
+        accessibilityRole="button"
+        accessibilityLabel={name}
+        onPress={toggle}
+        style={({ hovered, pressed }) => [
+          styles.row,
+          hovered && !pressed && styles.rowHovered,
+          pressed && styles.rowPressed,
+        ]}
+      >
+        {folded ? (
+          <ThemedChevronRight size={14} uniProps={mutedColor} />
+        ) : (
+          <ThemedChevronDown size={14} uniProps={mutedColor} />
+        )}
+        <Text numberOfLines={1} style={styles.topicText}>
+          {name}
+        </Text>
+        <Text style={styles.countText}>{count}</Text>
+      </ContextMenuTrigger>
+      <ContextMenuContent
+        align="start"
+        width={MENU_WIDTH}
+        sheetTitle={name}
+        testID={`pw-topic-menu-${name}`}
+      >
+        <MenuItem
+          leading={<ThemedPlus size={ICON} uniProps={mutedColor} />}
+          onSelect={() => onNewChat(name)}
+          testID="pw-topic-menu-new-chat"
+        >
+          New chat in this topic
+        </MenuItem>
+        <MenuItem
+          leading={<ThemedPencil size={ICON} uniProps={mutedColor} />}
+          onSelect={() => onRename(name)}
+          testID="pw-topic-menu-rename"
+        >
+          Rename topic
+        </MenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
-/** A pressable row in the same geometry as a chat row, with no menu. */
-function PlainRow({
-  onPress,
-  testID,
-  label,
-  children,
-}: {
-  onPress: () => void;
-  testID: string;
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <Pressable
-      testID={testID}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ hovered, pressed }) => [
-        styles.row,
-        hovered && !pressed && styles.rowHovered,
-        pressed && styles.rowPressed,
-      ]}
-    >
-      {children}
-    </Pressable>
-  );
-}
+const rowKey = (row: PwTreeRow): string => row.key;
 
 /** The open chats of one workspace, rendered under that workspace's sidebar row. */
 export function PwWorkspaceChatTree({
@@ -500,47 +540,124 @@ export function PwWorkspaceChatTree({
     [renameTarget],
   );
 
+  const toast = useToast();
+  const [topicRenameTarget, setTopicRenameTarget] = useState<string | null>(null);
+  const closeTopicRename = useCallback(() => setTopicRenameTarget(null), []);
+  const submitTopicRename = useCallback(
+    async (value: string) => {
+      if (!topicRenameTarget) return;
+      await applyWrites(planPwTopicRename(tree, topicRenameTarget, value));
+      setFolded((prev) => {
+        if (!prev.has(topicRenameTarget)) return prev;
+        const next = new Set(prev);
+        next.delete(topicRenameTarget);
+        next.add(value.trim());
+        return next;
+      });
+      setTopicRenameTarget(null);
+    },
+    [topicRenameTarget, tree],
+  );
+
+  // A new chat draft in this workspace, put in the topic once it becomes a chat.
+  const newChatInTopic = useCallback(
+    (topic: string) => {
+      const draftId = generateDraftId();
+      rememberPwDraftTopic(draftId, topic);
+      navigateToWorkspace({ serverId, workspaceId, target: { kind: "draft", draftId } });
+    },
+    [serverId, workspaceId],
+  );
+
+  const rows = useMemo(() => flattenPwChatTree(tree, folded), [tree, folded]);
+  // The row the pointer went down on, so a drag knows which row it moved.
+  const grabbedKeyRef = useRef<string | null>(null);
+  const handleDragEnd = useCallback(
+    (next: PwTreeRow[]) => {
+      const moved = grabbedKeyRef.current ?? findMovedRowKey(rows, next);
+      grabbedKeyRef.current = null;
+      if (!moved) return;
+      void applyWrites(planPwDrag(tree, next, moved)).catch((error: unknown) =>
+        toast.error(error instanceof Error ? error.message : "Could not move the chat"),
+      );
+    },
+    [rows, toast, tree],
+  );
+
+  const renderRow = useCallback(
+    (row: PwTreeRow): ReactElement =>
+      row.kind === "topic" ? (
+        <TopicRow
+          name={row.name}
+          count={row.count}
+          folded={row.folded}
+          onToggle={toggleTopic}
+          onRename={setTopicRenameTarget}
+          onNewChat={newChatInTopic}
+        />
+      ) : (
+        <ChatRow
+          chat={row.chat}
+          indented={Boolean(row.chat.topic)}
+          selected={row.chat.agentId === focusedAgentId}
+          topics={topicNames}
+          onRename={setRenameTarget}
+        />
+      ),
+    [focusedAgentId, newChatInTopic, toggleTopic, topicNames],
+  );
+
+  const renderDraggable = useCallback(
+    ({ item, dragHandleProps }: DraggableRenderItemInfo<PwTreeRow>): ReactElement => (
+      <View
+        {...(dragHandleProps?.attributes ?? {})}
+        {...(dragHandleProps?.listeners ?? {})}
+        ref={dragHandleProps?.setActivatorNodeRef as never}
+      >
+        <View
+          onPointerDown={() => {
+            grabbedKeyRef.current = item.key;
+          }}
+        >
+          {renderRow(item)}
+        </View>
+      </View>
+    ),
+    [renderRow],
+  );
+
   if (tree.topics.length === 0 && tree.loose.length === 0) {
     return null;
   }
 
   return (
     <View testID={`pw-chat-tree-${workspaceId}`} style={styles.tree}>
-      {tree.topics.map((topic) => {
-        const isFolded = folded.has(topic.name);
-        return (
-          <View key={`topic:${topic.name}`}>
-            <TopicRow
-              name={topic.name}
-              count={topic.chats.length}
-              folded={isFolded}
-              onToggle={toggleTopic}
-            />
-            {isFolded
-              ? null
-              : topic.chats.map((chat) => (
-                  <ChatRow
-                    key={chat.agentId}
-                    chat={chat}
-                    indented
-                    selected={chat.agentId === focusedAgentId}
-                    topics={topicNames}
-                    onRename={setRenameTarget}
-                  />
-                ))}
-          </View>
-        );
-      })}
-      {tree.loose.map((chat) => (
-        <ChatRow
-          key={chat.agentId}
-          chat={chat}
-          indented={false}
-          selected={chat.agentId === focusedAgentId}
-          topics={topicNames}
-          onRename={setRenameTarget}
+      {isNative ? (
+        rows.map((row) => <View key={row.key}>{renderRow(row)}</View>)
+      ) : (
+        <DraggableList
+          testID={`pw-chat-tree-list-${workspaceId}`}
+          data={rows}
+          keyExtractor={rowKey}
+          renderItem={renderDraggable}
+          onDragEnd={handleDragEnd}
+          extraData={focusedAgentId}
+          scrollEnabled={false}
+          useDragHandle
         />
-      ))}
+      )}
+      {topicRenameTarget ? (
+        <AdaptiveRenameModal
+          visible
+          title="Rename topic"
+          initialValue={topicRenameTarget}
+          placeholder={topicRenameTarget}
+          submitLabel={t("workspace.tabs.menu.rename")}
+          onClose={closeTopicRename}
+          onSubmit={submitTopicRename}
+          testID="pw-topic-rename-modal"
+        />
+      ) : null}
       {renameTarget ? (
         <AdaptiveRenameModal
           visible
@@ -598,6 +715,11 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.base,
     fontWeight: theme.fontWeight.medium,
     lineHeight: 20,
+  },
+  // What the chat is doing, in words - never a colour alone.
+  stateText: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.sm,
   },
   countText: {
     color: theme.colors.foregroundMuted,

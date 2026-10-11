@@ -57,6 +57,11 @@ import {
 } from "@/screens/workspace/workspace-tab-presentation";
 import { buildDeterministicWorkspaceTabId } from "@/workspace-tabs/identity";
 import {
+  mergeReorderedTabs,
+  pickTabsInView,
+  readPwTopic,
+} from "@/components/sidebar/pw-chat-tree-model";
+import {
   buildWorkspaceDesktopTabActions,
   type WorkspaceDesktopTabActions,
   type WorkspaceTabMenuEntry,
@@ -951,7 +956,73 @@ function TabChip({
   );
 }
 
+/**
+ * PW build: the tabs for the list you are in. With a chat in front, the chat tabs shown are the
+ * chats in the same sidebar list - the main list, or the same topic (label pw.topic); tabs that
+ * are not chats always show. Reordering and the close-others/left/right actions work on the tabs
+ * shown only, so a hidden chat is never closed or moved by them.
+ */
 export function WorkspaceDesktopTabsRow(props: WorkspaceDesktopTabsRowProps) {
+  const agents = useSessionStore((state) => state.sessions[props.normalizedServerId]?.agents);
+  const shownTabs = useMemo(
+    () =>
+      pickTabsInView(props.tabs, (agentId) => {
+        const agent = agents?.get(agentId);
+        return agent ? readPwTopic(agent.labels) : null;
+      }),
+    [agents, props.tabs],
+  );
+  const { tabs: allTabs, onReorderTabs, onCloseTab } = props;
+  const handleReorder = useCallback(
+    (next: WorkspaceTabDescriptor[]) =>
+      onReorderTabs(
+        mergeReorderedTabs(
+          allTabs.map((item) => item.tab),
+          next,
+        ),
+      ),
+    [allTabs, onReorderTabs],
+  );
+  const closeEach = useCallback(
+    async (ids: string[]) => {
+      for (const id of ids) {
+        await onCloseTab(id);
+      }
+    },
+    [onCloseTab],
+  );
+  const shownIds = useMemo(() => shownTabs.map((item) => item.tab.tabId), [shownTabs]);
+  const handleCloseOthers = useCallback(
+    (tabId: string) => closeEach(shownIds.filter((id) => id !== tabId)),
+    [closeEach, shownIds],
+  );
+  const handleCloseLeft = useCallback(
+    (tabId: string) => closeEach(shownIds.slice(0, Math.max(0, shownIds.indexOf(tabId)))),
+    [closeEach, shownIds],
+  );
+  const handleCloseRight = useCallback(
+    (tabId: string) => {
+      const at = shownIds.indexOf(tabId);
+      return closeEach(at < 0 ? [] : shownIds.slice(at + 1));
+    },
+    [closeEach, shownIds],
+  );
+  if (shownTabs.length === props.tabs.length) {
+    return <WorkspaceDesktopTabsRowAll {...props} />;
+  }
+  return (
+    <WorkspaceDesktopTabsRowAll
+      {...props}
+      tabs={shownTabs}
+      onReorderTabs={handleReorder}
+      onCloseOtherTabs={handleCloseOthers}
+      onCloseTabsToLeft={handleCloseLeft}
+      onCloseTabsToRight={handleCloseRight}
+    />
+  );
+}
+
+function WorkspaceDesktopTabsRowAll(props: WorkspaceDesktopTabsRowProps) {
   const [presentations, setPresentations] = useState(
     () => new Map<string, WorkspaceTabPresentation>(),
   );

@@ -30,6 +30,11 @@ export function findActiveFileMention(input: FindActiveFileMentionInput): FileMe
     if (INVALID_MENTION_QUERY_CHARS.test(query)) {
       continue;
     }
+    // PW: an @ straight after a letter or digit is inside a word ("name@host", a typed token) -
+    // text, which Enter must send rather than pick a file in its place.
+    if (atIndex > 0 && /[\p{L}\p{N}_]/u.test(beforeCursor[atIndex - 1] ?? "")) {
+      continue;
+    }
     return {
       start: atIndex,
       end: clampedCursor,

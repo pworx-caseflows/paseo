@@ -48,6 +48,8 @@ import {
 } from "@/workspace-tabs/model";
 import { openWorkspaceChanges } from "@/workspace-tabs/open-supporting-view";
 import { useSettings } from "@/hooks/use-settings";
+import { takePwDraftTopic } from "@/components/sidebar/pw-draft-topics";
+import { PW_TOPIC_LABEL } from "@/components/sidebar/pw-chat-tree-model";
 
 const EMPTY_PENDING_PERMISSIONS = new Map();
 const DRAFT_CAPABILITIES: AgentCapabilityFlags = {
@@ -507,6 +509,13 @@ export function WorkspaceDraftAgentTab({
       clearDraftInput("sent");
       clearWorkspaceAttachments({ scopeKey: draftAttachmentScopeKey });
       useWorkspaceDraftSubmissionStore.getState().clearDraftSetup({ draftId });
+      // PW: a chat started from a sidebar topic goes into that topic.
+      const pwTopic = takePwDraftTopic(draftId);
+      if (pwTopic && client) {
+        void client
+          .updateAgent(result.id, { labels: { [PW_TOPIC_LABEL]: pwTopic } })
+          .catch(() => undefined);
+      }
       onCreated(result);
     },
   });

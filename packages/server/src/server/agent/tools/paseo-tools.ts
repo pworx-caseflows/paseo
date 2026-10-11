@@ -2195,9 +2195,14 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
     "update_agent",
     {
       title: "Update agent",
-      description: "Update an agent name, labels, and/or runtime settings.",
+      description:
+        "Update an agent name, labels, and/or runtime settings. Leave agentId out to update the agent making this call (rename yourself).",
       inputSchema: {
-        agentId: z.string(),
+        // PW: optional - a chat does not know its own id, and renaming itself is the common case.
+        agentId: z
+          .string()
+          .optional()
+          .describe("The agent to update. Omit to update the agent making this call."),
         name: z.string().optional(),
         labels: z.record(z.string(), z.string()).optional().describe("Labels to set on the agent"),
         settings: UpdateAgentSettingsInputSchema.optional().describe(
@@ -2208,7 +2213,11 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
         success: z.boolean(),
       },
     },
-    async ({ agentId, name, labels, settings }) => {
+    async ({ agentId: requestedAgentId, name, labels, settings }) => {
+      const agentId = requestedAgentId?.trim() || callerAgentId;
+      if (!agentId) {
+        throw new Error("agentId is required when the call does not come from an agent");
+      }
       if (settings?.modeId !== undefined) {
         await agentManager.setAgentMode(agentId, settings.modeId);
       }

@@ -41,6 +41,13 @@ describe("findActiveFileMention", () => {
     expect(mention).toBeNull();
   });
 
+  it("PW: an @ inside a word is not a mention, so Enter sends what was typed", () => {
+    for (const text of ["word@code", "please word@code", "name@host.com"]) {
+      expect(findActiveFileMention({ text, cursorIndex: text.length })).toBeNull();
+    }
+    expect(findActiveFileMention({ text: "see @src", cursorIndex: 8 })?.query).toBe("src");
+  });
+
   it("returns null when @ at start is followed by a delimiter", () => {
     const mention = findActiveFileMention({
       text: "@ ",
