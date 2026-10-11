@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import type { Agent } from "@/stores/session-store";
-import { buildBccChatTree } from "./bcc-chat-tree";
+import { buildPwChatTree } from "./pw-chat-tree-model";
 
-// What this is about, in one sentence: a project's OPEN chats show under it, inside their topic
-// when they have one and straight under the project when they do not.
+// What this is about, in one sentence: a workspace's OPEN chats show under its row, inside their
+// topic when they have one and straight under the workspace when they do not.
 
 function agent(partial: Partial<Agent> & { id: string }): Agent {
   return {
@@ -18,17 +18,16 @@ function agent(partial: Partial<Agent> & { id: string }): Agent {
   } as Agent;
 }
 
-const keys = new Set(["srv:ws1"]);
-
-describe("buildBccChatTree", () => {
-  test("chats with a topic group under it, chats without one sit under the project", () => {
-    const tree = buildBccChatTree(
+describe("buildPwChatTree", () => {
+  test("chats with a topic group under it, chats without one sit under the workspace", () => {
+    const tree = buildPwChatTree(
       [
-        agent({ id: "a", title: "NC 12 root cause", labels: { "bcc.topic": "Nonconformance" } }),
-        agent({ id: "b", title: "Supplier survey", labels: { "bcc.topic": "Suppliers" } }),
+        agent({ id: "a", title: "NC 12 root cause", labels: { "pw.topic": "Nonconformance" } }),
+        agent({ id: "b", title: "Supplier survey", labels: { "pw.topic": "Suppliers" } }),
         agent({ id: "c", title: "Paseo project management" }),
       ],
-      keys,
+      "srv",
+      "ws1",
     );
     expect(tree.topics.map((t) => t.name)).toEqual(["Nonconformance", "Suppliers"]);
     expect(tree.topics[0]!.chats.map((c) => c.title)).toEqual(["NC 12 root cause"]);
@@ -36,31 +35,34 @@ describe("buildBccChatTree", () => {
   });
 
   test("an empty topic means no topic", () => {
-    const tree = buildBccChatTree([agent({ id: "a", labels: { "bcc.topic": "  " } })], keys);
+    const tree = buildPwChatTree([agent({ id: "a", labels: { "pw.topic": "  " } })], "srv", "ws1");
     expect(tree.topics).toEqual([]);
     expect(tree.loose.map((c) => c.agentId)).toEqual(["a"]);
   });
 
-  test("archived chats, workers and other projects' chats are left out", () => {
-    const tree = buildBccChatTree(
+  test("closed chats, workers and other workspaces' chats are left out", () => {
+    const tree = buildPwChatTree(
       [
         agent({ id: "closed", archivedAt: new Date() }),
         agent({ id: "worker", parentAgentId: "a" }),
         agent({ id: "elsewhere", workspaceId: "ws2" }),
+        agent({ id: "other-host", serverId: "srv2" }),
         agent({ id: "open" }),
       ],
-      keys,
+      "srv",
+      "ws1",
     );
     expect(tree.loose.map((c) => c.agentId)).toEqual(["open"]);
   });
 
   test("newest activity first inside a group", () => {
-    const tree = buildBccChatTree(
+    const tree = buildPwChatTree(
       [
         agent({ id: "old", lastActivityAt: new Date("2026-10-01T00:00:00Z") }),
         agent({ id: "new", lastActivityAt: new Date("2026-10-11T00:00:00Z") }),
       ],
-      keys,
+      "srv",
+      "ws1",
     );
     expect(tree.loose.map((c) => c.agentId)).toEqual(["new", "old"]);
   });

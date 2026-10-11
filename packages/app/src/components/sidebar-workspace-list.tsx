@@ -63,7 +63,7 @@ import {
   type SidebarWorkspacePlacement,
 } from "@/hooks/use-sidebar-workspaces-list";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
-import { BccChatTree } from "@/components/sidebar/bcc-chat-tree";
+import { PwWorkspaceChatTree } from "@/components/sidebar/pw-chat-tree";
 import {
   hasActiveSidebarLabelFilter,
   useSidebarViewStore,
@@ -1630,24 +1630,31 @@ function ProjectBlock({
         dragHandleProps?: DraggableListDragHandleProps;
       },
     ) => {
+      // PW build: each workspace row carries its open chats underneath it, grouped by an
+      // optional topic (components/sidebar/pw-chat-tree.tsx).
       return (
-        <MemoWorkspaceRowItem
-          workspace={item}
-          workspaceEntry={workspaceEntriesByKey.get(item.workspaceKey) ?? null}
-          hostBadge={hostBadgeByServerId.get(item.serverId) ?? null}
-          shortcutNumber={shortcutIndexByWorkspaceKey.get(item.workspaceKey) ?? null}
-          showShortcutBadge={showShortcutBadges}
-          canCopyBranchName={project.projectKind === "git"}
-          canPin={supportsPinningByServerId.get(item.serverId) === true}
-          onToggleWorkspacePin={onToggleWorkspacePin}
-          isCreating={creatingWorkspaceIds.has(item.workspaceId)}
-          selectionEnabled={selectionEnabled}
-          activeWorkspaceSelection={activeWorkspaceSelection}
-          onWorkspacePress={onWorkspacePress}
-          drag={input?.drag}
-          isDragging={input?.isDragging}
-          dragHandleProps={input?.dragHandleProps}
-        />
+        <View>
+          <MemoWorkspaceRowItem
+            workspace={item}
+            workspaceEntry={workspaceEntriesByKey.get(item.workspaceKey) ?? null}
+            hostBadge={hostBadgeByServerId.get(item.serverId) ?? null}
+            shortcutNumber={shortcutIndexByWorkspaceKey.get(item.workspaceKey) ?? null}
+            showShortcutBadge={showShortcutBadges}
+            canCopyBranchName={project.projectKind === "git"}
+            canPin={supportsPinningByServerId.get(item.serverId) === true}
+            onToggleWorkspacePin={onToggleWorkspacePin}
+            isCreating={creatingWorkspaceIds.has(item.workspaceId)}
+            selectionEnabled={selectionEnabled}
+            activeWorkspaceSelection={activeWorkspaceSelection}
+            onWorkspacePress={onWorkspacePress}
+            drag={input?.drag}
+            isDragging={input?.isDragging}
+            dragHandleProps={input?.dragHandleProps}
+          />
+          {input?.isDragging ? null : (
+            <PwWorkspaceChatTree serverId={item.serverId} workspaceId={item.workspaceId} />
+          )}
+        </View>
       );
     },
     [
@@ -1751,15 +1758,8 @@ function ProjectBlock({
   let projectChildren = null;
   if (!collapsed) {
     if (project.workspaces.length > 0) {
-      // Bristol CAD/CAM build: the project's open chats sit straight under it, grouped by an
-      // optional topic (components/sidebar/bcc-chat-tree.tsx). A project with one workspace -
-      // the one-folder way of working - shows no workspace row at all; a project with several
-      // keeps its workspace rows below the chats.
       projectChildren = (
         <>
-          <BccChatTree project={project} />
-          {project.workspaces.length > 1 ? (
-            <>
           <DraggableList
             testID={`sidebar-workspace-list-${project.viewKey}`}
             data={visibleWorkspaces}
@@ -1780,8 +1780,6 @@ function ProjectBlock({
               onPress={toggleWorkspacesExpanded}
               testID={`sidebar-project-show-more-${project.viewKey}`}
             />
-          ) : null}
-            </>
           ) : null}
         </>
       );
