@@ -150,8 +150,10 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
     // Electron's built-in handler would install an older download without checking
     // whether a newer release has superseded it.
     autoUpdater.autoInstallOnAppQuit = false;
-    autoUpdater.allowPrerelease = input.releaseChannel === "beta";
-    autoUpdater.channel = input.releaseChannel === "beta" ? "beta" : "latest";
+    // PW build: our fork publishes no beta releases, so the updater stays on stable whatever
+    // channel an older setting holds (card "Our own Paseo build" on the board).
+    autoUpdater.allowPrerelease = false;
+    autoUpdater.channel = "latest";
     autoUpdater.allowDowngrade = false;
     autoUpdater.isUserWithinRollout = async (info) => {
       try {

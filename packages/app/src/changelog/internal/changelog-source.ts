@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { parseChangelog, type ChangelogRelease } from "./parse-changelog";
 
-const CHANGELOG_URL = "https://raw.githubusercontent.com/getpaseo/paseo/main/CHANGELOG.md";
+// PW build: our own release notes, on branch pw of the fork.
+const CHANGELOG_URL = "https://raw.githubusercontent.com/pworx-caseflows/paseo/pw/CHANGELOG.md";
 
 export type ChangelogState =
   | { status: "loading" }

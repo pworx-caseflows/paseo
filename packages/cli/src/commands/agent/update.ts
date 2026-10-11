@@ -114,15 +114,22 @@ export async function applyAgentChanges(
   return { notice: null };
 }
 
-function parseLabelOptions(labels: string[] | undefined): Record<string, string> {
+export function parseLabelOptions(labels: string[] | undefined): Record<string, string> {
   const parsed: Record<string, string> = {};
   if (!labels) {
     return parsed;
   }
 
   for (const rawLabel of labels) {
+    // PW build: a comma piece with no "=" belongs to the value before it, so a value such as
+    // a topic name may carry commas (card "Our own Paseo build" on the board).
+    let previousKey: string | null = null;
     for (const segment of rawLabel.split(",")) {
       const label = segment.trim();
+      if (previousKey !== null && !label.includes("=")) {
+        parsed[previousKey] = `${parsed[previousKey]},${segment}`;
+        continue;
+      }
       if (!label) {
         continue;
       }
@@ -149,6 +156,7 @@ function parseLabelOptions(labels: string[] | undefined): Record<string, string>
       }
 
       parsed[key] = value;
+      previousKey = key;
     }
   }
 

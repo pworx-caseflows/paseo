@@ -3406,6 +3406,15 @@ export class Session {
         return;
       }
 
+      // PW build: a running chat announces its own change; an idle one is only written to
+      // storage, so announce it here or the app shows the old name or topic until a restart.
+      if (!this.agentManager.getAgent(agentId) && this.agentUpdates.hasSubscription()) {
+        const storedRecord = await this.agentStorage.get(agentId);
+        if (storedRecord) {
+          await this.agentUpdates.emitStoredRecord(storedRecord);
+        }
+      }
+
       this.emit({
         type: "update_agent_response",
         payload: { requestId, agentId, accepted: true, error: null },

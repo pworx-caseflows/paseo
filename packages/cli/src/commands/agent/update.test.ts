@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentProviderNotice } from "@getpaseo/protocol/agent-types";
 import {
   applyAgentChanges,
+  parseLabelOptions,
   toAgentUpdateResult,
   type AgentMetadataChanges,
   type AgentUpdateClient,
@@ -39,6 +40,21 @@ class RecordingAgentUpdateClient implements AgentUpdateClient {
     this.calls.push(`model:${modelId}`);
   }
 }
+
+describe("parseLabelOptions", () => {
+  it("keeps a comma inside a label value", () => {
+    expect(parseLabelOptions(["pw.topic=Board, website"])).toEqual({
+      "pw.topic": "Board, website",
+    });
+  });
+
+  it("still sets several labels from one comma-separated flag", () => {
+    expect(parseLabelOptions(["pw.topic=Board, website,pw.order=3"])).toEqual({
+      "pw.topic": "Board, website",
+      "pw.order": "3",
+    });
+  });
+});
 
 describe("applyAgentChanges", () => {
   it("sets the model, then the thinking option checked against it", async () => {

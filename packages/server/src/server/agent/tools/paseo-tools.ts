@@ -1058,6 +1058,14 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
       .describe(
         "Get notified when the created agent finishes, errors, or needs permission. Set false only for truly fire-and-forget agents.",
       ),
+    // PW build: a chat created for the person to use is a normal chat, not a subagent the
+    // sidebar hides (card "Our own Paseo build" on the board).
+    detached: z
+      .boolean()
+      .optional()
+      .describe(
+        "Set true to create a normal top-level chat that shows in the sidebar instead of your subagent. Use it when the new chat is for the user to work in, not a worker for you.",
+      ),
   };
   const canonicalTopLevelInputSchema = {
     ...canonicalCreateAgentFields,
@@ -1615,7 +1623,7 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
       return {
         kind: "agent-scoped",
         parsedArgs: parsed,
-        detached: false,
+        detached: parsed.detached === true,
         cwd,
         workspaceId,
         worktree: undefined,

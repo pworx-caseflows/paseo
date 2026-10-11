@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.11.2-pw.10 - 2026-10-11
+
+Our own build, on branch pw of pworx-caseflows/paseo.
+
+### Removed
+
+- Settings > About: the Release channel switch (the app always stays on Stable) and the Star, Sponsor and Community links
+
+### Changed
+
+- What's new shows our build's own release notes
+
+### Fixed
+
+- Renaming a topic shows straight away on idle chats, without a restart
+- A chat can create another chat as a normal chat that shows in the sidebar, instead of a hidden sub-chat
+- `paseo agent update --label` keeps a comma inside a label value, such as a topic name
+
 ## 0.11.2 - 2026-10-09
 
 ### Fixed

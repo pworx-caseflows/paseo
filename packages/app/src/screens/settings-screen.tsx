@@ -56,9 +56,7 @@ import { SidebarNavSection } from "@/screens/settings/sidebar/sidebar-nav-sectio
 import { SendingSection } from "@/screens/settings/general/sending-section";
 import {
   useAppSettings,
-  useSettings,
   type AppSettings,
-  type Settings as EffectiveSettings,
 } from "@/hooks/use-settings";
 import { useHostRuntimeIsConnected, useHosts } from "@/runtime/host-runtime";
 import { useSessionStore } from "@/stores/session-store";
@@ -80,8 +78,6 @@ import { KeyboardShortcutsSection } from "@/screens/settings/keyboard-shortcuts-
 import { EditorSection } from "@/screens/settings/editor-section";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { CommunityLinks } from "@/components/community-links";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { DesktopPermissionsSection } from "@/desktop/components/desktop-permissions-section";
 import { DesktopNotificationsSection } from "@/desktop/components/desktop-notifications-section";
@@ -468,9 +464,6 @@ function AboutSection({ appVersion, appVersionText, isDesktopApp }: AboutSection
         </View>
       </SettingsSection>
       <ConnectedHostsSection clientVersion={appVersion} />
-      <View style={styles.aboutCommunity}>
-        <CommunityLinks />
-      </View>
     </>
   );
 }
@@ -600,7 +593,6 @@ function getUpdateButtonLabel(
 
 function DesktopAppUpdateRow() {
   const { t } = useTranslation();
-  const { settings, updateSettings } = useSettings();
   const {
     isDesktopApp,
     statusText,
@@ -628,20 +620,6 @@ function DesktopAppUpdateRow() {
     }
     void checkForUpdates();
   }, [checkForUpdates, isDesktopApp]);
-
-  const handleReleaseChannelChange = useCallback(
-    (releaseChannel: EffectiveSettings["releaseChannel"]) => {
-      void updateSettings({ releaseChannel });
-    },
-    [updateSettings],
-  );
-  const releaseChannelOptions = useMemo(
-    () => [
-      { value: "stable" as const, label: t("settings.about.releaseChannel.stable") },
-      { value: "beta" as const, label: t("settings.about.releaseChannel.beta") },
-    ],
-    [t],
-  );
 
   const handleInstallUpdate = useCallback(() => {
     if (!isDesktopApp) {
@@ -679,20 +657,6 @@ function DesktopAppUpdateRow() {
 
   return (
     <>
-      <View style={[settingsStyles.row, settingsStyles.rowBorder]}>
-        <View style={settingsStyles.rowContent}>
-          <Text style={settingsStyles.rowTitle}>{t("settings.about.releaseChannel.label")}</Text>
-          <Text style={settingsStyles.rowHint}>
-            {t("settings.about.releaseChannel.description")}
-          </Text>
-        </View>
-        <SegmentedControl
-          size="sm"
-          value={settings.releaseChannel}
-          onValueChange={handleReleaseChannelChange}
-          options={releaseChannelOptions}
-        />
-      </View>
       <View style={[settingsStyles.row, settingsStyles.rowBorder]}>
         <View style={settingsStyles.rowContent}>
           <Text style={settingsStyles.rowTitle}>{t("settings.about.updates.label")}</Text>
@@ -1524,9 +1488,6 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.palette.red[300],
     fontSize: theme.fontSize.sm,
     marginTop: theme.spacing[1],
-  },
-  aboutCommunity: {
-    marginTop: theme.spacing[4],
   },
   aboutUpdateActions: {
     flexDirection: "row",
