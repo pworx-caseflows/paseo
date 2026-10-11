@@ -1652,7 +1652,16 @@ function ProjectBlock({
             dragHandleProps={input?.dragHandleProps}
           />
           {input?.isDragging ? null : (
-            <PwWorkspaceChatTree serverId={item.serverId} workspaceId={item.workspaceId} />
+            <PwWorkspaceChatTree
+              serverId={item.serverId}
+              workspaceId={item.workspaceId}
+              workspaceSelected={isWorkspaceSelected({
+                selection: activeWorkspaceSelection,
+                serverId: item.serverId,
+                workspaceId: item.workspaceId,
+                enabled: selectionEnabled,
+              })}
+            />
           )}
         </View>
       );

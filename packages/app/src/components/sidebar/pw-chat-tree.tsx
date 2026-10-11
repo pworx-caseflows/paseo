@@ -54,9 +54,11 @@ import { buildProviderCommand } from "@/utils/provider-command-templates";
 
 import {
   buildPwChatTree,
+  pickFocusedAgentId,
   PW_TOPIC_LABEL,
   type PwChat,
 } from "@/components/sidebar/pw-chat-tree-model";
+import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 
 const TOPIC_PAGE_ID = "pwTopic";
 const NEW_TOPIC_PAGE_ID = "pwTopicNew";
@@ -164,11 +166,14 @@ function NewTopicPage({ chat }: { chat: PwChat }): ReactElement {
 function ChatRow({
   chat,
   indented,
+  selected,
   topics,
   onRename,
 }: {
   chat: PwChat;
   indented: boolean;
+  /** The chat whose tab is in front in the workspace on screen. */
+  selected: boolean;
   topics: readonly string[];
   onRename: (chat: PwChat) => void;
 }) {
@@ -284,11 +289,13 @@ function ChatRow({
         testID={`pw-chat-row-${chat.agentId}`}
         accessibilityRole="button"
         accessibilityLabel={chat.title}
+        accessibilityState={{ selected }}
         onPress={open}
         style={({ hovered, pressed }) => [
           styles.row,
           indented && styles.rowIndented,
-          hovered && !pressed && styles.rowHovered,
+          selected && styles.rowSelected,
+          hovered && !pressed && !selected && styles.rowHovered,
           pressed && styles.rowPressed,
         ]}
       >
@@ -414,12 +421,20 @@ function PlainRow({
 export function PwWorkspaceChatTree({
   serverId,
   workspaceId,
+  workspaceSelected,
 }: {
   serverId: string;
   workspaceId: string;
+  /** This workspace is the one on screen, so its front chat is the one you are in. */
+  workspaceSelected: boolean;
 }) {
   const { t } = useTranslation();
   const agentMap = useSessionStore(useShallow((state) => state.sessions[serverId]?.agents));
+  const focusedAgentId = useWorkspaceLayoutStore((state) =>
+    workspaceSelected
+      ? pickFocusedAgentId(state.layoutByWorkspace[`${serverId}:${workspaceId}`])
+      : null,
+  );
   const tree = useMemo(
     () => buildPwChatTree(agentMap ? [...agentMap.values()] : [], serverId, workspaceId),
     [agentMap, serverId, workspaceId],
@@ -472,6 +487,7 @@ export function PwWorkspaceChatTree({
                     key={chat.agentId}
                     chat={chat}
                     indented
+                    selected={chat.agentId === focusedAgentId}
                     topics={topicNames}
                     onRename={setRenameTarget}
                   />
@@ -484,6 +500,7 @@ export function PwWorkspaceChatTree({
           key={chat.agentId}
           chat={chat}
           indented={false}
+          selected={chat.agentId === focusedAgentId}
           topics={topicNames}
           onRename={setRenameTarget}
         />
@@ -525,6 +542,10 @@ const styles = StyleSheet.create((theme) => ({
   },
   rowHovered: {
     backgroundColor: theme.colors.surfaceSidebarHover,
+  },
+  // The same fill Paseo gives the selected workspace row.
+  rowSelected: {
+    backgroundColor: theme.colors.surfaceSidebarSelected,
   },
   rowPressed: {
     backgroundColor: theme.colors.surface2,

@@ -2,6 +2,34 @@
 // so it is tested on its own.
 
 import type { Agent } from "@/stores/session-store";
+import {
+  collectAllTabs,
+  findPaneById,
+  type SplitNode,
+  type SplitPane,
+  type WorkspaceLayout,
+} from "@/stores/workspace-layout-actions";
+
+function firstPane(node: SplitNode): SplitPane | null {
+  if (node.kind === "pane") return node.pane;
+  for (const child of node.group.children) {
+    const pane = firstPane(child);
+    if (pane) return pane;
+  }
+  return null;
+}
+
+/**
+ * The chat whose tab is in front in a workspace: the focused tab of the focused pane, or of the
+ * first pane when no pane holds focus. Null when that tab is not a chat.
+ */
+export function pickFocusedAgentId(layout: WorkspaceLayout | undefined): string | null {
+  if (!layout) return null;
+  const pane = findPaneById(layout.root, layout.focusedPaneId) ?? firstPane(layout.root);
+  if (!pane?.focusedTabId) return null;
+  const tab = collectAllTabs(layout.root).find((t) => t.tabId === pane.focusedTabId);
+  return tab?.target.kind === "agent" ? tab.target.agentId : null;
+}
 
 export const PW_TOPIC_LABEL = "pw.topic";
 
