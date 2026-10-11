@@ -27,7 +27,8 @@ import {
   Pencil,
   Plus,
   RotateCw,
-  X,
+  Archive,
+  Trash2,
 } from "lucide-react-native";
 import { useShallow } from "zustand/react/shallow";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
@@ -72,7 +73,8 @@ const ThemedFolderInput = withUnistyles(FolderInput);
 const ThemedPencil = withUnistyles(Pencil);
 const ThemedPlus = withUnistyles(Plus);
 const ThemedRotateCw = withUnistyles(RotateCw);
-const ThemedX = withUnistyles(X);
+const ThemedArchive = withUnistyles(Archive);
+const ThemedTrash2 = withUnistyles(Trash2);
 const mutedColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 async function setTopic(chat: PwChat, topic: string): Promise<void> {
@@ -243,8 +245,9 @@ function ChatRow({
     }
   }, [chat.agentId, chat.serverId, t, toast]);
 
-  // Closing a chat's tab archives it; so does closing it here, asking first when it is running.
-  const close = useCallback(async () => {
+  // Archive: what closing a chat's tab does - out of the list, kept in Paseo's history. Asks first
+  // when the chat is running, as the tab does.
+  const archive = useCallback(async () => {
     const client = getHostRuntimeStore().getClient(chat.serverId);
     if (!client) {
       toast.error(t("common.errors.daemonClientUnavailable"));
@@ -268,6 +271,31 @@ function ChatRow({
       );
     }
   }, [agent, chat.agentId, chat.serverId, t, toast]);
+
+  // Delete: out of Paseo altogether, history included - Paseo's own hard delete. Always asks,
+  // since it cannot be undone in Paseo. Claude's chat file on disk is not touched by it.
+  const remove = useCallback(async () => {
+    const client = getHostRuntimeStore().getClient(chat.serverId);
+    if (!client) {
+      toast.error(t("common.errors.daemonClientUnavailable"));
+      return;
+    }
+    const confirmed = await confirmDialog({
+      title: `Delete "${chat.title}"?`,
+      message:
+        "The chat is removed from Paseo, its history included, and this cannot be undone in Paseo. " +
+        "Claude's own copy of the conversation stays on disk.",
+      confirmLabel: "Delete",
+      cancelLabel: t("workspace.tabs.confirmations.cancel"),
+      destructive: true,
+    });
+    if (!confirmed) return;
+    try {
+      await client.deleteAgent(chat.agentId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete the chat");
+    }
+  }, [chat.agentId, chat.serverId, chat.title, t, toast]);
 
   const pages = useMemo<readonly MenuPageDefinition[]>(
     () => [
@@ -350,11 +378,19 @@ function ChatRow({
         </MenuSubTrigger>
         <MenuSeparator />
         <MenuItem
-          leading={<ThemedX size={ICON} uniProps={mutedColor} />}
-          onSelect={() => void close()}
-          testID="pw-chat-menu-close"
+          leading={<ThemedArchive size={ICON} uniProps={mutedColor} />}
+          onSelect={() => void archive()}
+          testID="pw-chat-menu-archive"
         >
-          {t("workspace.tabs.menu.close")}
+          {t("workspace.tabs.confirmations.archive")}
+        </MenuItem>
+        <MenuItem
+          leading={<ThemedTrash2 size={ICON} uniProps={mutedColor} />}
+          destructive
+          onSelect={() => void remove()}
+          testID="pw-chat-menu-delete"
+        >
+          Delete
         </MenuItem>
       </ContextMenuContent>
     </ContextMenu>
