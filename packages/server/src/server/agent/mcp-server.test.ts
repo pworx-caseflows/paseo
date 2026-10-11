@@ -4133,7 +4133,14 @@ describe("send_agent_prompt MCP tool", () => {
         agentId: child.id,
         prompt: "Follow up",
       });
-      await vi.waitFor(() => expect(childSession.prompts).toEqual(["Follow up"]));
+      // PW build: a prompt from another agent arrives marked (markAgentToAgentPrompt).
+      await vi.waitFor(() =>
+        expect(childSession.prompts).toEqual([
+          expect.stringMatching(
+            /^<paseo-agent-message from="[^"]+">\nFollow up\n<\/paseo-agent-message>$/,
+          ),
+        ]),
+      );
       acknowledgeTurnStart();
       const response = await pending;
 

@@ -11,6 +11,8 @@ export function addImportOptions(cmd: Command): Command {
     .argument("<id>", "Provider session/thread ID to import")
     .requiredOption("--provider <provider>", "Agent provider id")
     .option("--cwd <path>", "Working directory for providers that require it")
+    // PW build: place the imported agent in an existing workspace (the daemon already accepts it).
+    .option("--workspace <id>", "Existing workspace to place the imported agent in")
     .option(
       "--label <key=value>",
       "Add label(s) to the agent (can be used multiple times)",
@@ -22,6 +24,7 @@ export function addImportOptions(cmd: Command): Command {
 export interface AgentImportOptions extends CommandOptions {
   provider?: string;
   cwd?: string;
+  workspace?: string;
   label?: string[];
   host?: string;
 }
@@ -119,6 +122,7 @@ export async function runImportCommand(
       provider,
       sessionId,
       cwd,
+      ...(options.workspace?.trim() ? { workspaceId: options.workspace.trim() } : {}),
       ...(Object.keys(labels).length > 0 ? { labels } : {}),
     });
 

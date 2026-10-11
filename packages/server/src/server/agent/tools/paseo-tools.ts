@@ -1,5 +1,19 @@
 import { stat } from "node:fs/promises";
 import { z } from "zod";
+
+/**
+ * PW build: wrap a prompt that one agent sends another, so the receiving chat's record tells it
+ * apart from what a person typed. Tooling that reads chat records (the PW workspace's build gate)
+ * skips messages in this envelope. The agent still reads it as the instruction it is. A prompt
+ * with no calling agent (a person, the CLI) is left exactly as written.
+ */
+export function markAgentToAgentPrompt<T extends string | undefined>(
+  prompt: T,
+  callerAgentId: string | null | undefined,
+): T {
+  if (!callerAgentId || typeof prompt !== "string") return prompt;
+  return `<paseo-agent-message from="${callerAgentId}">\n${prompt}\n</paseo-agent-message>` as T;
+}
 import { ensureValidJson } from "../../json-utils.js";
 import type { Logger } from "pino";
 
@@ -1483,7 +1497,9 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
           kind: "mcp",
           provider: parsedArgs.provider,
           title: parsedArgs.title,
-          initialPrompt: parsedArgs.initialPrompt,
+          // PW build: a worker's first prompt from another agent is marked like any other
+          // agent-to-agent prompt (markAgentToAgentPrompt).
+          initialPrompt: markAgentToAgentPrompt(parsedArgs.initialPrompt, callerAgentId),
           config: inheritedConfig,
           cwd: resolvedArgs.cwd,
           workspaceId: resolvedArgs.workspaceId,
@@ -1932,7 +1948,9 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
         agentManager,
         agentStorage,
         agentId,
-        prompt,
+        // PW build: a prompt one agent sends another is marked as such, so the receiving chat's
+        // record never shows it as something the person typed.
+        prompt: markAgentToAgentPrompt(prompt, callerAgentId),
         sessionMode,
         logger: childLogger,
       });
