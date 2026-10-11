@@ -36,8 +36,11 @@ extraResources:
   - from: assets/editor-targets
     to: editor-target-icons
 publish:
+  # Bristol CAD/CAM's build: the self-updater follows our fork's releases, so an official
+  # Paseo release never replaces this build. A new Paseo release is moved onto branch bcc
+  # and released here (card "Our own Paseo build" on the board).
   provider: github
-  owner: getpaseo
+  owner: pworx-caseflows
   repo: paseo
 mac:
   artifactName: "Paseo-${version}-${arch}.${ext}"
