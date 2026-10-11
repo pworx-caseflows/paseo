@@ -1,4 +1,6 @@
-const versionPattern = /^(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$/;
+// PW build: "-pw.N" (our build number on top of Paseo's version) is accepted and ignored for the
+// phone apps' numbers, which we do not build.
+const versionPattern = /^(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+)|-pw\.\d+)?$/;
 const stableIosBuildSlot = 999;
 const FDROID_ABI_VERSION_CODE_SUFFIXES = {
   "armeabi-v7a": 1,
