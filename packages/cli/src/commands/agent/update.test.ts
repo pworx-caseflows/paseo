@@ -13,6 +13,7 @@ class RecordingAgentUpdateClient implements AgentUpdateClient {
     updates: AgentMetadataChanges;
   }> = [];
   readonly thinkingUpdates: Array<{ agentId: string; thinkingOptionId: string }> = [];
+  readonly calls: string[] = [];
   thinkingNotice: AgentProviderNotice | null = null;
 
   constructor(private readonly supportsThinkingUpdate = true) {}
@@ -30,11 +31,33 @@ class RecordingAgentUpdateClient implements AgentUpdateClient {
     thinkingOptionId: string,
   ): Promise<AgentProviderNotice | null> {
     this.thinkingUpdates.push({ agentId, thinkingOptionId });
+    this.calls.push(`thinking:${thinkingOptionId}`);
     return this.thinkingNotice;
+  }
+
+  async setAgentModel(_agentId: string, modelId: string | null): Promise<void> {
+    this.calls.push(`model:${modelId}`);
   }
 }
 
 describe("applyAgentChanges", () => {
+  it("sets the model, then the thinking option checked against it", async () => {
+    const client = new RecordingAgentUpdateClient();
+    await applyAgentChanges(client, "agent-1", {
+      type: "model",
+      modelId: "claude-haiku-5",
+      thinkingOptionId: "medium",
+    });
+    expect(client.calls).toEqual(["model:claude-haiku-5", "thinking:medium"]);
+    expect(client.metadataUpdates).toEqual([]);
+  });
+
+  it("sets only the model when no thinking option is given", async () => {
+    const client = new RecordingAgentUpdateClient();
+    await applyAgentChanges(client, "agent-1", { type: "model", modelId: "claude-opus-5-5" });
+    expect(client.calls).toEqual(["model:claude-opus-5-5"]);
+  });
+
   it("updates an agent's thinking without issuing an empty metadata update", async () => {
     const client = new RecordingAgentUpdateClient();
 

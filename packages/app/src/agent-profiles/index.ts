@@ -27,3 +27,4 @@ export {
 } from "./internal/use-agent-profile-picker";
 export { AgentProfileGlyph } from "./internal/agent-profile-glyph";
 export { AgentProfilesSection } from "./settings/agent-profiles-section";
+export { NewChatDefaultsSection } from "./settings/new-chat-defaults-section";

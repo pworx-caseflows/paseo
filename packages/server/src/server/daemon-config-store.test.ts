@@ -190,6 +190,32 @@ describe("DaemonConfigStore", () => {
     expect(loadPersistedConfig(paseoHome).daemon?.agentProfiles).toHaveLength(1);
   });
 
+  test("PW: patch saves the new chat defaults to config.json and reads them back", () => {
+    const paseoHome = mkdtempSync(path.join(tmpdir(), "paseo-daemon-config-store-"));
+    tempDirs.push(paseoHome);
+    const store = new DaemonConfigStore(paseoHome, {
+      relay: { enabled: false },
+      mcp: { injectIntoAgents: false },
+      browserTools: { enabled: false },
+      providers: {},
+      metadataGeneration: { providers: [] },
+      autoArchiveAfterMerge: false,
+      enableTerminalAgentHooks: false,
+      appendSystemPrompt: "",
+    });
+    const defaults = {
+      provider: "claude",
+      model: "claude-opus-5-5",
+      thinkingOptionId: "medium",
+      modeId: "auto",
+    };
+
+    store.patch({ newChatDefaults: defaults });
+
+    expect(loadPersistedConfig(paseoHome).daemon?.newChatDefaults).toEqual(defaults);
+    expect(store.get().newChatDefaults).toEqual(defaults);
+  });
+
   test("rolls back config when a field transition fails", () => {
     const paseoHome = mkdtempSync(path.join(tmpdir(), "paseo-daemon-config-store-"));
     tempDirs.push(paseoHome);

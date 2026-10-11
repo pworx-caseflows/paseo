@@ -35,6 +35,7 @@ export interface AgentUpdateOptions extends CommandOptions {
   name?: string;
   label?: string[];
   thinking?: string;
+  model?: string;
   host?: string;
 }
 
@@ -56,11 +57,14 @@ export interface AgentUpdateClient {
     agentId: string,
     thinkingOptionId: string,
   ): Promise<AgentProviderNotice | null>;
+  setAgentModel(agentId: string, modelId: string | null): Promise<void>;
 }
 
 export type AgentChanges =
   | { type: "metadata"; updates: AgentMetadataChanges }
-  | { type: "thinking"; thinkingOptionId: string };
+  | { type: "thinking"; thinkingOptionId: string }
+  // PW: the model is set before the thinking option, which is checked against it.
+  | { type: "model"; modelId: string; thinkingOptionId?: string };
 
 export interface AppliedAgentChanges {
   notice: AgentProviderNotice | null;
@@ -85,6 +89,16 @@ export async function applyAgentChanges(
   agentId: string,
   changes: AgentChanges,
 ): Promise<AppliedAgentChanges> {
+  if (changes.type === "model") {
+    await client.setAgentModel(agentId, changes.modelId);
+    if (!changes.thinkingOptionId) {
+      return { notice: null };
+    }
+    return applyAgentChanges(client, agentId, {
+      type: "thinking",
+      thinkingOptionId: changes.thinkingOptionId,
+    });
+  }
   if (changes.type === "thinking") {
     // COMPAT(agentThinkingUpdate): added in v0.2.4, remove gate after 2027-01-28.
     if (client.getLastServerInfoMessage()?.features?.agentThinkingUpdate !== true) {
@@ -170,20 +184,34 @@ function parseAgentChanges(options: AgentUpdateOptions): AgentChanges {
     } satisfies CommandError;
   }
 
+  const modelId = options.model?.trim();
+  if (options.model !== undefined && !modelId) {
+    throw {
+      code: "INVALID_MODEL",
+      message: "--model cannot be empty",
+      details: 'Provide a model ID. Use "paseo provider models <provider>" to list valid IDs.',
+    } satisfies CommandError;
+  }
+
   const hasMetadataUpdates = Boolean(name) || Object.keys(labels).length > 0;
-  if (hasMetadataUpdates && thinkingOptionId) {
+  if (hasMetadataUpdates && (thinkingOptionId || modelId)) {
     throw {
       code: "INVALID_OPTIONS",
-      message: "--thinking cannot be combined with --name or --label",
+      message: "--thinking and --model cannot be combined with --name or --label",
       details: "Run separate agent update commands for runtime settings and metadata.",
     } satisfies CommandError;
   }
-  if (!hasMetadataUpdates && !thinkingOptionId) {
+  if (!hasMetadataUpdates && !thinkingOptionId && !modelId) {
     throw {
       code: "NO_CHANGES_PROVIDED",
       message: "Nothing to update",
-      details: "Provide at least one of: --name <name>, --label <key=value>, --thinking <id>",
+      details:
+        "Provide at least one of: --name <name>, --label <key=value>, --thinking <id>, --model <id>",
     } satisfies CommandError;
+  }
+
+  if (modelId) {
+    return { type: "model", modelId, ...(thinkingOptionId ? { thinkingOptionId } : {}) };
   }
 
   if (thinkingOptionId) {

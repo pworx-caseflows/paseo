@@ -101,6 +101,7 @@ export function createAgentCommand(): Command {
       .argument("<id>", "Agent ID (or prefix)")
       .option("--name <name>", "Update the agent's display name")
       .option("--thinking <id>", "Update the agent's thinking option ID")
+      .option("--model <id>", "Update the agent's model ID")
       .option(
         "--label <label>",
         "Add/set label(s) on the agent (can be used multiple times or comma-separated)",

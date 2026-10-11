@@ -1,10 +1,16 @@
 import { PluginRegistryIdentitySchema } from "./plugin-registry.js";
-import { AgentProfileSchema, AgentSkillSelectionSchema } from "./agent-profile.js";
+import {
+  AgentProfileSchema,
+  AgentSkillSelectionSchema,
+  NewChatDefaultsSchema,
+} from "./agent-profile.js";
 export {
   AgentProfileSchema,
   AgentSkillSelectionSchema,
+  NewChatDefaultsSchema,
   type AgentProfile,
   type AgentSkillSelection,
+  type NewChatDefaults,
 } from "./agent-profile.js";
 import { PluginIdSchema, PluginRequirementsSchema, PluginSourceSchema } from "./plugin-config.js";
 export {
@@ -204,6 +210,7 @@ export const MutableDaemonConfigSchema = z
     appendSystemPrompt: z.string().default(""),
     terminalProfiles: z.array(TerminalProfileSchema).optional(),
     agentProfiles: z.array(AgentProfileSchema).optional(),
+    newChatDefaults: NewChatDefaultsSchema.optional(),
     skills: z.object({ selection: AgentSkillSelectionSchema.optional() }).strict().optional(),
     pluginsEnabled: z.boolean().optional(),
     plugins: z.record(PluginIdSchema, PluginSourceSchema).optional(),
@@ -225,6 +232,7 @@ export const MutableDaemonConfigPatchSchema = z
     appendSystemPrompt: z.string().optional(),
     terminalProfiles: z.array(TerminalProfileSchema).optional(),
     agentProfiles: z.array(AgentProfileSchema).optional(),
+    newChatDefaults: NewChatDefaultsSchema.optional(),
     pluginsEnabled: z.boolean().optional(),
     plugins: z.record(PluginIdSchema, PluginSourceSchema).optional(),
   })

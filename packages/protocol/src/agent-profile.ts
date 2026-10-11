@@ -29,6 +29,22 @@ export const AgentProfileSchema = z
 
 export type AgentProfile = z.infer<typeof AgentProfileSchema>;
 
+/**
+ * PW: what a new chat starts on, set once in Settings and saved host-wide in daemon config
+ * (`daemon.newChatDefaults`). The new-chat form starts from it ahead of the per-device last
+ * choice; picking a profile or changing a control in the form still wins for that chat.
+ */
+export const NewChatDefaultsSchema = z
+  .object({
+    provider: z.string(),
+    model: z.string().optional(),
+    modeId: z.string().optional(),
+    thinkingOptionId: z.string().optional(),
+  })
+  .passthrough();
+
+export type NewChatDefaults = z.infer<typeof NewChatDefaultsSchema>;
+
 export const AgentSkillSelectionSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("all") }).strict(),
   z.object({ mode: z.literal("custom"), skills: z.array(z.string()) }).strict(),

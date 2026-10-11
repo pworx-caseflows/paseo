@@ -14,6 +14,8 @@ import {
 import { filterSelectableModels } from "@/provider-selection/model-catalog";
 import { OptimisticFormPreferences } from "@/create-agent-preferences/optimistic-preferences";
 import { applyAgentProfilePreferences } from "@/create-agent-preferences/preferences";
+import { applyNewChatDefaults } from "@/create-agent-preferences/new-chat-defaults";
+import { useDaemonConfig } from "./use-daemon-config";
 import { useProvidersSnapshot } from "./use-providers-snapshot";
 import {
   useFormPreferences,
@@ -147,7 +149,17 @@ async function persistProviderPreferences(input: {
 export function useAgentFormState(options: UseAgentFormStateOptions): UseAgentFormStateResult {
   const { serverId, initialValues, workingDir, isVisible = true, isCreateFlow = true } = options;
 
-  const { preferences, isLoading: isPreferencesLoading, updatePreferences } = useFormPreferences();
+  const { preferences, isLoading: isDevicePreferencesLoading, updatePreferences } =
+    useFormPreferences();
+  // PW: the host's New chat defaults (Settings) are where a new chat starts. Resolution waits
+  // for the host's settings so it never settles on the device's last choice first.
+  const { config: daemonConfig, isLoading: isDaemonConfigLoading } = useDaemonConfig(serverId);
+  const isPreferencesLoading = isDevicePreferencesLoading || isDaemonConfigLoading;
+  const newChatDefaults = daemonConfig?.newChatDefaults;
+  const formPreferences = useMemo(
+    () => applyNewChatDefaults(preferences, newChatDefaults),
+    [preferences, newChatDefaults],
+  );
   const preferenceOverlayRef = useRef(new OptimisticFormPreferences(preferences));
 
   useEffect(() => {
@@ -259,7 +271,7 @@ export function useAgentFormState(options: UseAgentFormStateOptions): UseAgentFo
       isPreferencesLoading,
       hasSnapshot: snapshotEntries !== undefined,
       initialValues,
-      preferences,
+      preferences: formPreferences,
       providerModelsByProvider: snapshotProviderModelsByProvider,
       allowedProviderMap: snapshotResolvableProviderDefinitionMap,
     });
@@ -270,7 +282,7 @@ export function useAgentFormState(options: UseAgentFormStateOptions): UseAgentFo
     isPreferencesLoading,
     snapshotEntries,
     initialValues,
-    preferences,
+    formPreferences,
     snapshotProviderModelsByProvider,
     snapshotResolvableProviderDefinitionMap,
   ]);
