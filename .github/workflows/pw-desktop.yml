@@ -1,0 +1,78 @@
+# PW build: GitHub builds the desktop installers for every release of branch pw and attaches them
+# to that release, so no PC has to build them and Windows gets an installer at all (a Windows
+# installer can only be built on Windows). Each installer comes with the small file the app's
+# self-updater reads: latest-linux.yml for Linux, latest.yml for Windows.
+#
+# Runs when a release is published on this fork, or by hand for an existing release tag.
+name: PW desktop installers
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach to, e.g. v0.11.2-pw.5"
+        required: true
+      platforms:
+        description: "linux, windows or all"
+        required: true
+        default: all
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+            target: --linux deb --x64
+            files: "*.deb latest-linux.yml"
+          - name: windows
+            os: windows-latest
+            target: --win nsis --x64
+            files: "*.exe *.exe.blockmap latest.yml"
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+      # A matrix cannot be filtered at job level, so every step carries this switch.
+      RUN: ${{ github.event_name == 'release' || github.event.inputs.platforms == 'all' || github.event.inputs.platforms == matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.RUN == 'true'
+        with:
+          ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        if: env.RUN == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        if: env.RUN == 'true'
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Build the installer
+        if: env.RUN == 'true'
+        shell: bash
+        run: npm run build:desktop -- --publish never ${{ matrix.target }}
+
+      - name: Attach it to the release
+        if: env.RUN == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd packages/desktop/release
+          shopt -s nullglob
+          files=( ${{ matrix.files }} )
+          if [ ${#files[@]} -eq 0 ]; then echo "No installer was built"; exit 1; fi
+          gh release upload "$TAG" "${files[@]}" --clobber -R "$GITHUB_REPOSITORY"
