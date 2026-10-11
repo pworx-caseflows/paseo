@@ -63,6 +63,7 @@ import {
   type SidebarWorkspacePlacement,
 } from "@/hooks/use-sidebar-workspaces-list";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
+import { BccChatTree } from "@/components/sidebar/bcc-chat-tree";
 import {
   hasActiveSidebarLabelFilter,
   useSidebarViewStore,
@@ -1750,8 +1751,15 @@ function ProjectBlock({
   let projectChildren = null;
   if (!collapsed) {
     if (project.workspaces.length > 0) {
+      // Bristol CAD/CAM build: the project's open chats sit straight under it, grouped by an
+      // optional topic (components/sidebar/bcc-chat-tree.tsx). A project with one workspace -
+      // the one-folder way of working - shows no workspace row at all; a project with several
+      // keeps its workspace rows below the chats.
       projectChildren = (
         <>
+          <BccChatTree project={project} />
+          {project.workspaces.length > 1 ? (
+            <>
           <DraggableList
             testID={`sidebar-workspace-list-${project.viewKey}`}
             data={visibleWorkspaces}
@@ -1772,6 +1780,8 @@ function ProjectBlock({
               onPress={toggleWorkspacesExpanded}
               testID={`sidebar-project-show-more-${project.viewKey}`}
             />
+          ) : null}
+            </>
           ) : null}
         </>
       );
