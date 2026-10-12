@@ -41,6 +41,7 @@ import {
   checkForAppUpdate,
   createAppUpdateLifecycleLogger,
   createUpdaterMessageLogger,
+  wrapSudoForServiceManager,
   resolveStagingUserId,
   rolloutManifestSchema,
   shouldAdmitToRollout,
@@ -140,6 +141,29 @@ describe("checkForAppUpdate", () => {
       isSilent: false,
       isForceRunAfter: true,
     });
+  });
+});
+
+describe("wrapSudoForServiceManager", () => {
+  const sudo = ["pkexec", "--disable-internal-agent"];
+
+  it("sends the install through the service manager when Paseo carries no-new-privileges", () => {
+    const wrapped = wrapSudoForServiceManager(sudo, { hasNoNewPrivs: true, hasSystemdRun: true });
+    expect(wrapped).toEqual([
+      "systemd-run --user --wait --pipe --collect --quiet pkexec",
+      "--disable-internal-agent",
+    ]);
+    // electron-updater picks its quoting by finding pkexec in the first entry.
+    expect(/pkexec/i.test(wrapped[0] ?? "")).toBe(true);
+  });
+
+  it("leaves a normally started Paseo's install as it was", () => {
+    expect(wrapSudoForServiceManager(sudo, { hasNoNewPrivs: false, hasSystemdRun: true })).toEqual(
+      sudo,
+    );
+    expect(wrapSudoForServiceManager(sudo, { hasNoNewPrivs: true, hasSystemdRun: false })).toEqual(
+      sudo,
+    );
   });
 });
 

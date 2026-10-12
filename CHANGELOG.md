@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2-pw.16 - 2026-10-12
+
+Our own build, on branch pw of pworx-caseflows/paseo.
+
+### Fixed
+
+- Linux: Update asks for the password again in a Paseo that restarted itself after the previous update (the install now goes through systemd-run, which clears Linux's "no new privileges" mark)
+
 ## 0.11.2-pw.15 - 2026-10-12
 
 Our own build, on branch pw of pworx-caseflows/paseo.

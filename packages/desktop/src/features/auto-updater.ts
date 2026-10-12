@@ -1,4 +1,6 @@
+import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app } from "electron";
@@ -78,6 +80,49 @@ export function createAppUpdateLifecycleLogger(logger: AppUpdateLogSink) {
 }
 
 const updateLifecycleLog = createAppUpdateLifecycleLogger(log);
+
+/**
+ * PW build: a Paseo that restarted itself after an update carries Linux's "no new privileges"
+ * mark, and with it pkexec refuses to run ("pkexec must be setuid root"), so the update did
+ * nothing. Then the install command goes through the desktop's service manager, which starts
+ * it fresh without the mark, and the password prompt appears (card "Our own Paseo build").
+ */
+export function wrapSudoForServiceManager(
+  sudo: readonly string[],
+  context: { hasNoNewPrivs: boolean; hasSystemdRun: boolean },
+): string[] {
+  const [command, ...args] = sudo;
+  if (!command || !context.hasNoNewPrivs || !context.hasSystemdRun) return [...sudo];
+  // One string, so electron-updater still sees pkexec in it and quotes the command the same way.
+  return [`systemd-run --user --wait --pipe --collect --quiet ${command}`, ...args];
+}
+
+function hasNoNewPrivs(): boolean {
+  try {
+    return /^NoNewPrivs:\s*1$/m.test(readFileSync("/proc/self/status", "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+function hasSystemdRun(): boolean {
+  return spawnSync("sh", ["-c", "command -v systemd-run"], { stdio: "ignore" }).status === 0;
+}
+
+function routeLinuxInstallThroughServiceManager(): void {
+  if (process.platform !== "linux") return;
+  const updater = autoUpdater as unknown as {
+    sudoWithArgs?: (installComment: string) => string[];
+  };
+  const original = updater.sudoWithArgs;
+  if (typeof original !== "function") return;
+  updater.sudoWithArgs = function (this: unknown, installComment: string) {
+    return wrapSudoForServiceManager(original.call(this, installComment), {
+      hasNoNewPrivs: hasNoNewPrivs(),
+      hasSystemdRun: hasSystemdRun(),
+    });
+  };
+}
 
 interface UpdaterMessageSink {
   info(...params: unknown[]): void;
@@ -193,6 +238,7 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
     // prompt, a failed install - go into Paseo's log, so a failed update records why
     // (card "Our own Paseo build" on the board). The missing-channel error stays out.
     autoUpdater.logger = createUpdaterMessageLogger(log);
+    routeLinuxInstallThroughServiceManager();
 
     autoUpdater.on("update-available", (info) => {
       const updateInfo = info as RuntimeUpdateInfo;
