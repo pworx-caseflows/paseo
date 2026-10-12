@@ -1238,6 +1238,7 @@ export const ja: TranslationResources = {
       sessions: "履歴",
       search: "検索",
       schedules: "スケジュール",
+      artifacts: "Artifacts",
     },
     worktreeSetup: {
       title: "ワークツリースクリプトを設定",

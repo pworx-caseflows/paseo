@@ -26,6 +26,7 @@ import {
   type AppUpdateCheckIntent,
   type AppReleaseChannel,
 } from "../features/auto-updater.js";
+import { listPwArtifacts } from "../features/pw-artifacts.js";
 import {
   getBundledCliShimPath,
   getCliInstallStatus,
@@ -466,6 +467,7 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
         },
       );
     },
+    pw_list_artifacts: () => listPwArtifacts(),
     get_local_daemon_version: () => getLocalDaemonVersion(),
     install_cli: () => installCli(),
     get_cli_install_status: () => getCliInstallStatus(),

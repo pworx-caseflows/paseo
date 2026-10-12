@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2-pw.13 - 2026-10-12
+
+Our own build, on branch pw of pworx-caseflows/paseo.
+
+### Added
+
+- Artifacts in the sidebar (desktop app): a list of your claude.ai artifacts with title and last updated; click one to open it in the browser
+
 ## 0.11.2-pw.12 - 2026-10-12
 
 Our own build, on branch pw of pworx-caseflows/paseo.

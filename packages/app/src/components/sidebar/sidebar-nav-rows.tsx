@@ -1,5 +1,5 @@
 import { router, usePathname } from "expo-router";
-import { CalendarClock, History, Plus, Search } from "lucide-react-native";
+import { CalendarClock, History, Plus, Search, Shapes } from "lucide-react-native";
 import { memo, useCallback, useMemo, useRef, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type StyleProp, type ViewStyle } from "react-native";
@@ -17,7 +17,9 @@ import { useSidebarNavItems } from "@/sidebar-nav/use-sidebar-nav-items";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { useWorkspace } from "@/stores/session-store-hooks";
+import { isElectronRuntime } from "@/desktop/host";
 import {
+  buildArtifactsRoute,
   buildNewWorkspaceRoute,
   buildSchedulesRoute,
   buildSessionsRoute,
@@ -173,9 +175,33 @@ function SidebarSchedulesRow({ onBeforeNavigate }: SidebarNavRowProps) {
   );
 }
 
+// PW build: the Artifacts list (card "Our own Paseo build" on the board). Its rows come through
+// the desktop app, so the entry shows only there.
+function SidebarArtifactsRow({ onBeforeNavigate }: SidebarNavRowProps) {
+  const { t } = useTranslation();
+  const pathname = usePathname();
+  const handlePress = useCallback(() => {
+    onBeforeNavigate?.();
+    router.push(buildArtifactsRoute());
+  }, [onBeforeNavigate]);
+
+  if (!isElectronRuntime()) return null;
+  return (
+    <SidebarHeaderRow
+      icon={Shapes}
+      label={t(builtinSidebarNavLabelKey("artifacts"))}
+      onPress={handlePress}
+      isActive={pathname.includes("/artifacts")}
+      testID="sidebar-artifacts"
+      variant="compact"
+    />
+  );
+}
+
 const BUILTIN_ROWS: Record<BuiltinSidebarNavId, ComponentType<SidebarNavRowProps>> = {
   "new-workspace": SidebarNewWorkspaceRow,
   history: SidebarHistoryRow,
   search: SidebarSearchRow,
   schedules: SidebarSchedulesRow,
+  artifacts: SidebarArtifactsRow,
 };
