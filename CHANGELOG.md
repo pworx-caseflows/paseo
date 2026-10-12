@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2-pw.14 - 2026-10-12
+
+Our own build, on branch pw of pworx-caseflows/paseo.
+
+### Changed
+
+- Tool call display Summary: thinking between tool calls stays inside the group, so everything between two written messages is one row; opening it shows the thinking in its place
+
 ## 0.11.2-pw.13 - 2026-10-12
 
 Our own build, on branch pw of pworx-caseflows/paseo.

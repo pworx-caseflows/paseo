@@ -45,6 +45,16 @@ function assistant(id: string): AssistantMessageItem {
   };
 }
 
+function thought(id: string): Extract<StreamItem, { kind: "thought" }> {
+  return {
+    kind: "thought",
+    id,
+    text: `thinking ${id}`,
+    timestamp: new Date("2026-01-01T00:00:30.000Z"),
+    status: "ready",
+  };
+}
+
 function project(input: {
   level: ToolCallDetailLevel;
   tail?: StreamItem[];
@@ -84,6 +94,32 @@ describe("tool call detail-level projection", () => {
       expect(project({ level, tail: [rejected, followUp] }).tail).toEqual([rejected, followUp]);
     },
   );
+
+  it("keeps thinking between tool calls inside one summary row", () => {
+    const thinkFirst = thought("t1");
+    const firstCall = toolCall("1", { type: "shell", command: "one" });
+    const thinkBetween = thought("t2");
+    const secondCall = toolCall("2", { type: "shell", command: "two" });
+    const tail = [thinkFirst, firstCall, thinkBetween, secondCall, assistant("done")];
+
+    const result = project({ level: "overview", tail });
+
+    expect(result.tail.map((item) => item.kind)).toEqual(["tool_call", "assistant_message"]);
+    expect(result.groupsByHostId.get(firstCall.id)?.run).toMatchObject({
+      calls: [firstCall, secondCall],
+      steps: [thinkFirst, firstCall, thinkBetween, secondCall],
+    });
+  });
+
+  it("leaves thinking that no tool call follows as its own row", () => {
+    const call = toolCall("1", { type: "shell", command: "one" });
+    const think = thought("t1");
+    const tail = [call, think, assistant("done")];
+
+    const result = project({ level: "overview", tail });
+
+    expect(result.tail).toEqual([call, think, tail[2]]);
+  });
 
   it("passes detailed timelines through without grouping work", () => {
     const tail = [toolCall("1", { type: "shell", command: "one" })];

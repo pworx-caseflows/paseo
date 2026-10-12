@@ -837,23 +837,38 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             onExpandedChange={setToolCallGroupExpanded}
           >
             {expanded
-              ? group.run.calls.map((call, index) => (
-                  <React.Fragment key={call.id}>
-                    {renderSingleToolCallItem(
-                      call,
-                      index === group.run.calls.length - 1,
-                      GROUPED_TOOL_CALL_DETAIL_MAX_HEIGHT,
-                    )}
-                  </React.Fragment>
-                ))
+              ? group.run.steps.map((step, index) => {
+                  const isLast = index === group.run.steps.length - 1;
+                  // PW build: the thinking between the calls is shown in its place.
+                  if (step.kind === "thought") {
+                    return (
+                      <ThoughtSlot
+                        key={step.id}
+                        itemId={step.id}
+                        onInlineDetailsExpandedChangeByItemId={setInlineDetailsExpanded}
+                        text={step.text}
+                        status={step.status}
+                        isLastInSequence={isLast}
+                        defaultExpanded={autoExpandReasoning}
+                      />
+                    );
+                  }
+                  return (
+                    <React.Fragment key={step.id}>
+                      {renderSingleToolCallItem(step, isLast, GROUPED_TOOL_CALL_DETAIL_MAX_HEIGHT)}
+                    </React.Fragment>
+                  );
+                })
               : null}
           </OverviewToolCallGroupView>
         );
       },
       [
+        autoExpandReasoning,
         expandedToolCallGroupIds,
         getToolCallGroup,
         renderSingleToolCallItem,
+        setInlineDetailsExpanded,
         setToolCallGroupExpanded,
       ],
     );
