@@ -215,6 +215,7 @@ export class AgentStorage {
     this.beginDelete(agentId);
     await (this.pendingWrites.get(agentId) ?? Promise.resolve());
     const paths = Array.from(this.pathsById.get(agentId) ?? []);
+    await this.keepDeleteNote(agentId);
     await Promise.all(
       paths.map(async (filePath) => {
         try {
@@ -235,6 +236,24 @@ export class AgentStorage {
     this.removeOwnerIndex(agentId);
     this.pathById.delete(agentId);
     this.pathsById.delete(agentId);
+  }
+
+  /**
+   * PW build: before a chat's record is deleted, its file is copied unchanged to
+   * <PASEO_HOME>/pw-deleted/<agentId>.json, so wrap-up can still archive its name, topic and
+   * place (card "Our own Paseo build" on the board). A copy that fails never stops the delete,
+   * and nothing removes these notes.
+   */
+  private async keepDeleteNote(agentId: string): Promise<void> {
+    const source = this.pathById.get(agentId);
+    if (!source) return;
+    const noteDir = path.join(path.dirname(this.baseDir), "pw-deleted");
+    try {
+      await fs.mkdir(noteDir, { recursive: true });
+      await fs.copyFile(source, path.join(noteDir, `${agentId}.json`));
+    } catch (error) {
+      this.logger.warn({ err: error, agentId }, "Failed to keep the delete note");
+    }
   }
 
   async applySnapshot(

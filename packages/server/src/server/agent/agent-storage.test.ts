@@ -148,6 +148,30 @@ describe("AgentStorage", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  test("remove keeps the record, unchanged, as a delete note in pw-deleted", async () => {
+    await storage.applySnapshot(createManagedAgent({ id: "agent-gone", cwd: "/tmp/project" }));
+    await storage.flush();
+    const [projectDir] = readdirSync(storagePath);
+    const recordPath = path.join(storagePath, projectDir, "agent-gone.json");
+    const before = await fs.readFile(recordPath);
+
+    await storage.remove("agent-gone");
+
+    const note = await fs.readFile(path.join(tmpDir, "pw-deleted", "agent-gone.json"));
+    expect(note.equals(before)).toBe(true);
+    await expect(fs.access(recordPath)).rejects.toThrow();
+  });
+
+  test("remove still deletes when the delete note cannot be written", async () => {
+    await storage.applySnapshot(createManagedAgent({ id: "agent-gone", cwd: "/tmp/project" }));
+    await storage.flush();
+    await fs.writeFile(path.join(tmpDir, "pw-deleted"), "not a folder");
+
+    await storage.remove("agent-gone");
+
+    expect(await storage.get("agent-gone")).toBeNull();
+  });
+
   test("applySnapshot persists configs and snapshot metadata", async () => {
     await storage.applySnapshot(
       createManagedAgent({

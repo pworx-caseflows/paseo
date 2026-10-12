@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2-pw.11 - 2026-10-12
+
+Our own build, on branch pw of pworx-caseflows/paseo.
+
+### Added
+
+- Deleting a chat first keeps its record, unchanged, in `pw-deleted` in Paseo's home folder, so wrap-up can still archive its name, topic and place
+
 ## 0.11.2-pw.10 - 2026-10-11
 
 Our own build, on branch pw of pworx-caseflows/paseo.
