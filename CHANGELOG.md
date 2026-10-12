@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2-pw.12 - 2026-10-12
+
+Our own build, on branch pw of pworx-caseflows/paseo.
+
+### Changed
+
+- The updater's own messages and install failures go into Paseo's log, so a failed update records why
+
 ## 0.11.2-pw.11 - 2026-10-12
 
 Our own build, on branch pw of pworx-caseflows/paseo.

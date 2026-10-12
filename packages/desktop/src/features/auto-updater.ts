@@ -79,6 +79,29 @@ export function createAppUpdateLifecycleLogger(logger: AppUpdateLogSink) {
 
 const updateLifecycleLog = createAppUpdateLifecycleLogger(log);
 
+interface UpdaterMessageSink {
+  info(...params: unknown[]): void;
+  warn(...params: unknown[]): void;
+  error(...params: unknown[]): void;
+}
+
+function describeUpdaterMessage(message: unknown): string {
+  if (message instanceof Error) return message.stack ?? message.message;
+  return typeof message === "string" ? message : JSON.stringify(message);
+}
+
+export function createUpdaterMessageLogger(sink: UpdaterMessageSink) {
+  return {
+    info: (message: unknown) => sink.info("[electron-updater]", describeUpdaterMessage(message)),
+    warn: (message: unknown) => sink.warn("[electron-updater]", describeUpdaterMessage(message)),
+    error: (message: unknown) => {
+      if (isUpdateChannelNotPublished(message)) return;
+      if (typeof message === "string" && message.includes("Cannot find channel")) return;
+      sink.error("[electron-updater]", describeUpdaterMessage(message));
+    },
+  };
+}
+
 function isUpdateChannelNotPublished(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -166,17 +189,10 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
     if (this.configured) return;
     this.configured = true;
 
-    // electron-updater logs every emitted error before consumers can classify it.
-    // Paseo reports genuine check, runtime, and install failures through the
-    // callbacks below, so leave internal error logging disabled to avoid both
-    // duplicate logs and expected missing-channel noise.
-    const updaterLogger = autoUpdater.logger;
-    autoUpdater.logger = {
-      debug: updaterLogger?.debug ? (message) => updaterLogger.debug?.(message) : undefined,
-      error: () => undefined,
-      info: (message) => updaterLogger?.info(message),
-      warn: (message) => updaterLogger?.warn(message),
-    };
+    // PW build: electron-updater's own messages - the install command, the admin-password
+    // prompt, a failed install - go into Paseo's log, so a failed update records why
+    // (card "Our own Paseo build" on the board). The missing-channel error stays out.
+    autoUpdater.logger = createUpdaterMessageLogger(log);
 
     autoUpdater.on("update-available", (info) => {
       const updateInfo = info as RuntimeUpdateInfo;

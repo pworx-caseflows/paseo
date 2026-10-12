@@ -40,6 +40,7 @@ import {
   bucketFromStagingUserId,
   checkForAppUpdate,
   createAppUpdateLifecycleLogger,
+  createUpdaterMessageLogger,
   resolveStagingUserId,
   rolloutManifestSchema,
   shouldAdmitToRollout,
@@ -139,6 +140,37 @@ describe("checkForAppUpdate", () => {
       isSilent: false,
       isForceRunAfter: true,
     });
+  });
+});
+
+describe("createUpdaterMessageLogger", () => {
+  it("records the updater's install messages and failures in Paseo's log", () => {
+    const sink = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = createUpdaterMessageLogger(sink);
+
+    logger.info("Install: isSilent: false, isForceRunAfter: true");
+    logger.warn("install call ignored: quitAndInstallCalled is set to true");
+    logger.error(new Error("pkexec: dismissed"));
+
+    expect(sink.info).toHaveBeenCalledWith(
+      "[electron-updater]",
+      "Install: isSilent: false, isForceRunAfter: true",
+    );
+    expect(sink.warn).toHaveBeenCalledWith(
+      "[electron-updater]",
+      "install call ignored: quitAndInstallCalled is set to true",
+    );
+    expect(sink.error.mock.calls[0]?.[1]).toContain("pkexec: dismissed");
+  });
+
+  it("leaves the unpublished-channel error out", () => {
+    const sink = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = createUpdaterMessageLogger(sink);
+
+    logger.error(Object.assign(new Error("x"), { code: "ERR_UPDATER_CHANNEL_FILE_NOT_FOUND" }));
+    logger.error('Error: Cannot find channel "latest-linux.yml" update info');
+
+    expect(sink.error).not.toHaveBeenCalled();
   });
 });
 
