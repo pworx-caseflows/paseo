@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeWorkspaceTabLayout,
   retainWorkspaceTabMeasuredWidth,
+  WORKSPACE_TAB_MAX_WIDTH,
 } from "@/screens/workspace/workspace-tab-layout";
 
 const metrics = {
@@ -18,6 +19,17 @@ const metrics = {
 };
 
 describe("computeWorkspaceTabLayout", () => {
+  it("gives a long title its whole width when the row has room (PW build)", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 2000,
+      tabLabelWidths: [300, 280],
+      metrics: { ...metrics, maxTabWidth: WORKSPACE_TAB_MAX_WIDTH },
+    });
+
+    // label + icon 14 + gap 4 + padding 8 * 2
+    expect(result.items.map((item) => item.width)).toEqual([334, 314]);
+  });
+
   it("keeps each tab at its natural content width when space is available", () => {
     const result = computeWorkspaceTabLayout({
       viewportWidth: 1200,

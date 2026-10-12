@@ -1,5 +1,11 @@
 export type WorkspaceTabCloseButtonPolicy = "all";
 
+/**
+ * PW build: a desktop tab is as wide as its whole title; tabs shrink only when the row is full
+ * (card "Our own Paseo build" on the board). Paseo capped every tab at 160px.
+ */
+export const WORKSPACE_TAB_MAX_WIDTH = Number.POSITIVE_INFINITY;
+
 export interface WorkspaceTabLayoutMetrics {
   rowHorizontalInset: number;
   actionsReservedWidth: number;

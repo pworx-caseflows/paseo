@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2-pw.15 - 2026-10-12
+
+Our own build, on branch pw of pworx-caseflows/paseo.
+
+### Changed
+
+- Desktop tabs show their whole title when the row has room; they shrink only when the row is full (no more 160-pixel limit)
+
 ## 0.11.2-pw.14 - 2026-10-12
 
 Our own build, on branch pw of pworx-caseflows/paseo.
